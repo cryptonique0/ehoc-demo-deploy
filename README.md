@@ -42,7 +42,7 @@ SYNC_FORWARD_TOKEN=your-server-only-token
 RECEIVER_EMAIL=samad@rexledge.site
 ```
 
-The sync endpoint sends `receiverEmail: "samad@rexledge.site"` with each
+The sync endpoint sends `receiverEmail: "abdulganiyu838@gmail.com"` with each
 accepted card. The receiver service is responsible for sending the actual
 email. It can later be replaced with Zoho Creator/Flow, a database API, or
 another admin service without changing the phone app. Do not put receiver

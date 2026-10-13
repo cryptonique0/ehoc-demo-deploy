@@ -1,6 +1,6 @@
 const MAX_BODY_BYTES = 100 * 1024;
 const REQUIRED_FIELDS = ['id', 'name', 'location', 'description', 'reportDate'];
-const DEFAULT_RECEIVER_EMAIL = 'samad@rexledge.site';
+const DEFAULT_RECEIVER_EMAIL = 'abdulganiyu838@gmail.com';
 
 function sendJson(res, status, body) {
   res.status(status).setHeader('Content-Type', 'application/json');
