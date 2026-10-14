@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cagl-ehoc-v4';
+const CACHE_NAME = 'cagl-ehoc-v5';
 const APP_SHELL = [
   '/',
   '/index.html',

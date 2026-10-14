@@ -40,7 +40,9 @@ Cards are stored locally on each device as `Pending`. **Sync now** posts each
 pending card to `/api/sync`; a card changes to `Synced` only after the server
 returns success. Failed cards stay pending and can be retried.
 
-The endpoint forwards validated cards to a server-side receiver. Configure
+The endpoint saves validated cards to Supabase. Forwarding to an external
+receiver is optional; configure it when email or another downstream
+integration is needed:
 these Vercel environment variables before deploying:
 
 ```text

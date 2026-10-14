@@ -7,6 +7,7 @@
 <meta name="description" content="CAGL Global electronic Hazard/Quality Observation Card">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -431,6 +432,8 @@ const EHOC_SYNC = {
             sent++;
           } else {
             failed = true;
+            const data = await res.json().catch(() => ({}));
+            if (data.message) return { sent, failed, message: data.message };
           }
         } catch (e) {
           failed = true;
@@ -512,8 +515,9 @@ window.EHOC_SYNC = EHOC_SYNC;
     const r = await EHOC_SYNC.run();
     if (r.reason === 'offline') showToast('No signal. Cards will send once signal returns.');
     else if (r.reason === 'busy') showToast('Sync already in progress.');
+    else if (r.message) showToast(`${r.message} Cards remain pending.`);
     else if (r.failed && r.sent) showToast(`${r.sent} card${r.sent === 1 ? '' : 's'} sent. Some cards remain pending.`);
-    else if (r.failed) showToast('The server did not accept the cards. They remain pending.');
+    else if (r.failed) showToast(r.message || 'The server did not accept the cards. They remain pending.');
     else if (r.sent) showToast(`${r.sent} card${r.sent === 1 ? '' : 's'} sent.`);
     else showToast('Nothing pending was sent. Cards remain safely saved on this device.');
     refreshPending();

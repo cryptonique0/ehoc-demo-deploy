@@ -60,7 +60,7 @@ async function persistCard(card) {
 
 async function forwardCard(card) {
   const receiver = process.env.SYNC_FORWARD_URL;
-  if (!receiver) throw new Error('SYNC_FORWARD_URL is not configured');
+  if (!receiver) return;
 
   const response = await fetch(receiver, {
     method: 'POST',
@@ -100,6 +100,13 @@ module.exports = async function handler(req, res) {
       return sendJson(res, 400, { error: 'invalid_json' });
     }
     console.error('Card sync failed:', error.message);
-    return sendJson(res, 503, { error: 'sync_unavailable' });
+    return sendJson(res, 503, {
+      error: 'sync_unavailable',
+      message: error.message === 'Supabase persistence is not configured'
+        ? 'Central storage is not configured on the server.'
+        : error.message.startsWith('supabase_http_')
+          ? 'Central storage rejected the card. Check the Supabase cards table schema.'
+          : 'The server could not save this card.'
+    });
   }
 };
