@@ -27,6 +27,13 @@ make sure it serves `manifest.webmanifest` as `application/manifest+json`,
   Screen**. Apple does not expose a web API that can open this prompt
   automatically, so the app displays these instructions instead.
 
+The app must be opened once while online so Safari can install the service
+worker and cache the app shell. After that first successful load, open the
+installed app or revisit the same HTTPS URL before turning off mobile data.
+Submitted cards continue to save locally while offline and sync when a
+connection returns. The administrator dashboard requires an internet
+connection for authentication and central data.
+
 ## Sync endpoint
 
 Cards are stored locally on each device as `Pending`. **Sync now** posts each
