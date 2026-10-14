@@ -1,11 +1,9 @@
-const CACHE_NAME = 'cagl-ehoc-v5';
+const CACHE_NAME = 'cagl-ehoc-v7';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/apple-touch-icon.png'
+  '/icons/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
