@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cagl-ehoc-v3';
+const CACHE_NAME = 'cagl-ehoc-v4';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -11,7 +11,13 @@ const APP_SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then(async (cache) => {
+        for (const asset of APP_SHELL) {
+          const response = await fetch(asset, { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Unable to cache ${asset}`);
+          await cache.put(asset, response);
+        }
+      })
       .then(() => self.skipWaiting())
   );
 });
@@ -33,15 +39,15 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.match('/index.html')
+      caches.match('/index.html', { ignoreSearch: true })
         .then((cached) => cached || fetch(event.request))
-        .catch(() => caches.match('/index.html'))
+        .catch(() => caches.match('/index.html', { ignoreSearch: true }))
     );
     return;
   }
 
   event.respondWith(
-    caches.match(event.request)
+    caches.match(event.request, { ignoreSearch: true })
       .then((cached) => {
         if (cached) return cached;
         return fetch(event.request).then((response) => {
@@ -52,6 +58,6 @@ self.addEventListener('fetch', (event) => {
           return response;
         });
       })
-      .catch(() => caches.match('/index.html'))
+      .catch(() => caches.match('/index.html', { ignoreSearch: true }))
   );
 });
