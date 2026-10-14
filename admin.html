@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <title>e-HOC Admin Dashboard</title>
+  <style>
+    :root{font:16px system-ui,sans-serif;color:#15201a;background:#f1f4f1}
+    body{max-width:1180px;margin:0 auto;padding:1rem}header,.panel{background:#fff;border:1px solid #d6ddd7;border-radius:8px;padding:1rem;margin-bottom:1rem}
+    header{display:flex;justify-content:space-between;align-items:center;gap:1rem}h1{margin:.2rem 0;font-size:1.4rem}
+    button{padding:.6rem .9rem;border:0;border-radius:6px;background:#006c2a;color:#fff;font-weight:700;cursor:pointer}
+    button.secondary{background:#fff;color:#15201a;border:1px solid #bcc7be}input{padding:.6rem;border:1px solid #bcc7be;border-radius:5px}
+    form{display:flex;flex-wrap:wrap;gap:.7rem;align-items:end}label{display:grid;gap:.25rem;font-weight:600;font-size:.85rem}
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem}.kpi{padding:.8rem;border-left:4px solid #006c2a;background:#f1f4f1}.kpi b{display:block;font-size:1.7rem}
+    .table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:.6rem;border-bottom:1px solid #d6ddd7;white-space:nowrap}
+    #app[hidden],#login[hidden],#detail[hidden]{display:none}.error{color:#a21b1b}.muted{color:#57685d}.actions{display:flex;gap:.5rem;flex-wrap:wrap}
+    dialog{max-width:720px;border:0;border-radius:8px;box-shadow:0 5px 30px #0004}dialog::backdrop{background:#0006}pre{white-space:pre-wrap;word-break:break-word}
+  </style>
+</head>
+<body>
+  <header><div><h1>CAGL Global e-HOC Admin</h1><span class="muted">Central submissions dashboard</span></div><button id="logout" class="secondary" hidden>Sign out</button></header>
+  <section id="login" class="panel">
+    <h2>Administrator sign in</h2><form id="login-form"><label>Email<input id="email" type="email" required autocomplete="username"></label><label>Password<input id="password" type="password" required autocomplete="current-password"></label><button>Sign in</button></form><p id="login-error" class="error"></p>
+  </section>
+  <main id="app" hidden>
+    <section class="panel"><div class="actions"><button id="refresh">Refresh</button><button id="pdf" class="secondary">Export filtered PDF</button><button id="pptx" class="secondary">Export filtered PPTX</button></div><p id="message" class="muted"></p></section>
+    <section class="panel"><form id="filters"><label>From<input id="from" type="date"></label><label>To<input id="to" type="date"></label><label>Location<input id="location"></label><label>Project<input id="project"></label><label>Nature<input id="nature" placeholder="e.g. Housekeeping"></label><label>Incident mode<select id="type"><option value="">All</option></select></label><label>Status<select id="status"><option value="">All</option><option>pending</option><option>synced</option></select></label><button class="secondary">Apply filters</button></form></section>
+    <section class="panel"><div class="kpis"><div class="kpi"><b id="total">0</b>Total cards</div><div class="kpi"><b id="pending">0</b>Pending</div><div class="kpi"><b id="priority">0</b>Priority items</div><div class="kpi"><b id="good">0</b>Good practices</div></div></section>
+    <section class="panel"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Observer</th><th>Location</th><th>Category</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table></div></section>
+  </main>
+  <dialog id="detail"><button id="close" class="secondary">Close</button><div id="detail-content"></div><div class="actions"><button id="card-pdf">Export card PDF</button><button id="card-pptx">Export card PPTX</button></div></dialog>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.min.js"></script>
+  <script>
+    const $=s=>document.querySelector(s); let supabase, cards=[], selected;
+    const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const flat=v=>Array.isArray(v)?v.map(x=>Array.isArray(x)?x.join(': '):x).join(', '):v||'-';
+    async function setup(){const r=await fetch('/api/config');const c=await r.json();if(!c.supabaseUrl||!c.supabaseAnonKey)throw Error('Supabase is not configured');supabase=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey);const {data}=await supabase.auth.getSession();if(data.session) showApp();$('#login-form').onsubmit=login;$('#logout').onclick=()=>supabase.auth.signOut().then(()=>location.reload());}
+    async function login(e){e.preventDefault();const {error}=await supabase.auth.signInWithPassword({email:$('#email').value,password:$('#password').value});if(error)$('#login-error').textContent=error.message;else showApp();}
+    async function showApp(){const {data}=await supabase.auth.getSession();if(!data.session)return;$('#login').hidden=true;$('#app').hidden=false;$('#logout').hidden=false;load();}
+    async function load(e){if(e)e.preventDefault();const {data:{session}}=await supabase.auth.getSession();if(!session)return;const qs=new URLSearchParams({limit:'100'});for(const key of ['status','location','project'])if($('#'+key).value)qs.set(key,$('#'+key).value);if($('#from').value)qs.set('from',$('#from').value);if($('#to').value)qs.set('to',$('#to').value);const r=await fetch('/api/admin/cards?'+qs,{headers:{Authorization:'Bearer '+session.access_token}});if(!r.ok){$('#message').textContent='Unable to load cards. Check administrator access.';return}cards=(await r.json()).cards;const nature=$('#nature').value.trim().toLowerCase(),type=$('#type').value;cards=cards.filter(c=>(!nature||JSON.stringify(c.nature||[]).toLowerCase().includes(nature))&&(!type||(c.type||[]).includes(type)));populateTypes();render();}
+    function populateTypes(){const current=$('#type').value;const types=[...new Set(cards.flatMap(c=>c.type||[]))].sort();$('#type').innerHTML='<option value="">All</option>'+types.map(t=>`<option>${esc(t)}</option>`).join('');$('#type').value=types.includes(current)?current:'';}
+    function render(){const priority=['At risk','Near miss','SWA'];$('#total').textContent=cards.length;$('#pending').textContent=cards.filter(c=>c.status==='pending').length;$('#priority').textContent=cards.filter(c=>(c.type||[]).some(t=>priority.includes(t))).length;$('#good').textContent=cards.filter(c=>(c.type||[]).includes('Good Practice')).length;$('#rows').innerHTML=cards.map((c,i)=>`<tr><td>${esc(c.reportDate)}</td><td>${esc(c.name)}</td><td>${esc(c.location)}</td><td>${esc(flat(c.category))}</td><td>${esc(flat(c.type))}</td><td>${esc(c.status)}</td><td><button data-card="${i}">Details</button></td></tr>`).join('')||'<tr><td colspan="7">No cards match these filters.</td></tr>';document.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>openCard(cards[b.dataset.card]));}
+    function openCard(c){selected=c;$('#detail-content').innerHTML=`<h2>${esc(c.name)} — ${esc(c.location)}</h2><dl>${Object.entries(c).map(([k,v])=>`<dt><b>${esc(k)}</b></dt><dd>${esc(flat(v))}</dd>`).join('')}</dl>`;$('#detail').showModal();}
+    function text(c){return Object.entries(c).map(([k,v])=>`${k}: ${flat(v)}`).join('\\n');}
+    function exportPdf(c=cards){const doc=new jspdf.jsPDF();doc.setFontSize(16);doc.text(c===cards?'e-HOC filtered report':'e-HOC card detail',15,18);doc.setFontSize(9);let y=28;(Array.isArray(c)?c.map(text).join('\\n\\n'):text(c)).split('\\n').forEach(line=>{if(y>280){doc.addPage();y=15}doc.text(line.slice(0,115),15,y);y+=5});doc.save(c===cards?'ehoc-report.pdf':'ehoc-card.pdf');}
+    function exportPptx(c=cards){const pptx=new PptxGenJS(),slide=pptx.addSlide();slide.addText(c===cards?'e-HOC filtered report':'e-HOC card detail',{x:.5,y:.3,w:9,h:.4,fontSize:20,bold:true});slide.addText((Array.isArray(c)?c.map(text).join('\\n\\n'):text(c)).slice(0,6000),{x:.5,y:.9,w:9,h:5.8,fontSize:10,breakLine:false,fit:'shrink'});pptx.writeFile({fileName:c===cards?'ehoc-report.pptx':'ehoc-card.pptx'});}
+    $('#refresh').onclick=load;$('#filters').onsubmit=load;$('#pdf').onclick=()=>exportPdf();$('#pptx').onclick=()=>exportPptx();$('#close').onclick=()=>$('#detail').close();$('#card-pdf').onclick=()=>exportPdf(selected);$('#card-pptx').onclick=()=>exportPptx(selected);setup().catch(e=>$('#login-error').textContent=e.message);
+  </script>
+</body>
+</html>

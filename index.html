@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#10201A">
 <meta name="description" content="CAGL Global electronic Hazard/Quality Observation Card">
 <link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -156,8 +157,6 @@ footer{padding:1.4rem 0;font-size:.8rem;color:var(--muted);text-align:center}
 .navbtn{background:transparent;border:0;color:#D9E0DA;text-decoration:none;font-weight:600;font-size:.9rem;padding:.5rem .7rem;border-radius:6px;white-space:nowrap;font:inherit;cursor:pointer}
 .navbtn[aria-current="page"]{background:rgba(255,255,255,.14);color:#fff}
 .navbtn:hover{background:rgba(255,255,255,.08)}
-.demo-banner{background:var(--greenbg);color:var(--greenink);border-bottom:1px solid var(--line);font-size:.85rem}
-.demo-banner .wrap{padding:.5rem 2rem}
 .installbar .btn{padding:.4rem .75rem;min-height:36px;white-space:nowrap}
 .installbar p{margin:0}
 </style>
@@ -234,14 +233,14 @@ footer{padding:1.4rem 0;font-size:.8rem;color:var(--muted);text-align:center}
     </div>
 
     <h2>Housekeeping</h2>
-    <p class="note">Test data or a device you're retiring? This clears every card stored on <em>this device</em> only — it does not reach any other phone.</p>
+    <p class="note">This clears every card stored on <em>this device</em> only — it does not reach any other phone.</p>
     <button class="btn danger" id="btn-clear" type="button">Clear all cards on this device</button>
   </div>
 </main>
 <main>
 <div class="wrap" id="wrap-report" hidden>
     <h1>Daily summary</h1>
-    <p class="note">Built from the cards on this device for the chosen date. In production this is generated centrally, from every device's synced cards, and emailed to the CEO at the daily cutoff.</p>
+    <p class="note">Built from the cards on this device for the chosen date.</p>
 
     <div class="controls">
       <label>Date<input type="date" id="r-date"></label>

@@ -40,11 +40,27 @@ function readBody(req) {
   });
 }
 
+async function persistCard(card) {
+  const url = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) throw new Error('Supabase persistence is not configured');
+
+  const response = await fetch(`${url}/rest/v1/cards?on_conflict=id`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=minimal'
+    },
+    body: JSON.stringify({ ...card, synced_at: new Date().toISOString() })
+  });
+  if (!response.ok) throw new Error(`supabase_http_${response.status}`);
+}
+
 async function forwardCard(card) {
   const receiver = process.env.SYNC_FORWARD_URL;
-  if (!receiver) {
-    throw new Error('SYNC_FORWARD_URL is not configured');
-  }
+  if (!receiver) throw new Error('SYNC_FORWARD_URL is not configured');
 
   const response = await fetch(receiver, {
     method: 'POST',
@@ -59,12 +75,7 @@ async function forwardCard(card) {
       receiverEmail: process.env.RECEIVER_EMAIL || DEFAULT_RECEIVER_EMAIL
     })
   });
-
-  if (!response.ok) {
-    throw new Error(`receiver_http_${response.status}`);
-  }
-
-  return response;
+  if (!response.ok) throw new Error(`receiver_http_${response.status}`);
 }
 
 module.exports = async function handler(req, res) {
@@ -78,7 +89,7 @@ module.exports = async function handler(req, res) {
     if (!validCard(card)) {
       return sendJson(res, 400, { error: 'invalid_card', required: REQUIRED_FIELDS });
     }
-
+    await persistCard(card);
     await forwardCard(card);
     return sendJson(res, 200, { accepted: true, cardId: card.id });
   } catch (error) {
