@@ -509,6 +509,7 @@ window.EHOC_SYNC = EHOC_SYNC;
         <span id="conn-dot" class="dot"></span>
         <span id="conn-text"></span>
         <span style="flex:1"></span>
+        <span id="backend-status-text" class="note">Backend: checking...</span>
         <span id="sync-status-text" class="note">Last sync: not yet synced</span>
         <span id="pending-text" class="note"></span>
         <button id="btn-sync-now" type="button">Sync now</button>
@@ -541,6 +542,17 @@ window.EHOC_SYNC = EHOC_SYNC;
     };
     localStorage.setItem('ehoc-last-sync-status', JSON.stringify(entry));
     updateLastSyncStatus();
+  }
+
+  async function refreshBackendStatus() {
+    try {
+      const res = await fetch('/api/health', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      const text = data.ok ? 'Backend ready' : 'Backend not configured';
+      document.getElementById('backend-status-text').textContent = text;
+    } catch (e) {
+      document.getElementById('backend-status-text').textContent = 'Backend offline';
+    }
   }
 
   async function refreshPending() {
@@ -579,6 +591,7 @@ window.EHOC_SYNC = EHOC_SYNC;
   });
 
   updateLastSyncStatus();
+  refreshBackendStatus();
   EHOC_SYNC.onChange(refreshPending);
 
   let toastTimer;
