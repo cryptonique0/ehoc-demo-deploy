@@ -234,7 +234,7 @@ footer{padding:1.4rem 0;font-size:.8rem;color:var(--muted);text-align:center}
     </div>
 
     <h2>Housekeeping</h2>
-    <p class="note">This clears every card stored on <em>this device</em> only — it does not reach any other phone.</p>
+    <p class="note">This clears every card stored on <em>this device</em> only.</p>
     <button class="btn danger" id="btn-clear" type="button">Clear all cards on this device</button>
   </div>
 </main>
@@ -410,12 +410,21 @@ const EHOC_SYNC = {
   emit() { this.listeners.forEach(fn => { try { fn(); } catch (e) {} }); },
 
   async run() {
-    if (!navigator.onLine) return { sent: 0, reason: 'offline' };
-    if (this.busy) return { sent: 0, reason: 'busy' };
+    if (!navigator.onLine) {
+      if (typeof setLastSyncStatus === 'function') setLastSyncStatus('Offline', 'waiting for signal');
+      return { sent: 0, reason: 'offline' };
+    }
+    if (this.busy) {
+      if (typeof setLastSyncStatus === 'function') setLastSyncStatus('Busy', 'sync already running');
+      return { sent: 0, reason: 'busy' };
+    }
     this.busy = true;
     try {
       const pending = await EHOC.pending();
-      if (!pending.length) return { sent: 0 };
+      if (!pending.length) {
+        if (typeof setLastSyncStatus === 'function') setLastSyncStatus('No pending cards', 'nothing to sync');
+        return { sent: 0 };
+      }
 
       let sent = 0;
       let failed = false;
@@ -433,14 +442,25 @@ const EHOC_SYNC = {
           } else {
             failed = true;
             const data = await res.json().catch(() => ({}));
-            if (data.message) return { sent, failed, message: data.message };
+            if (data.message) {
+              if (typeof setLastSyncStatus === 'function') setLastSyncStatus('Failed', data.message);
+              return { sent, failed, message: data.message };
+            }
           }
         } catch (e) {
           failed = true;
+          if (typeof setLastSyncStatus === 'function') setLastSyncStatus('Failed', 'connection error');
           break;
         }
       }
       if (sent) this.emit();
+      if (failed && sent) {
+        if (typeof setLastSyncStatus === 'function') setLastSyncStatus('Partial', `${sent} sent`);
+      } else if (sent) {
+        if (typeof setLastSyncStatus === 'function') setLastSyncStatus('Successful', `${sent} synced`);
+      } else if (failed) {
+        if (typeof setLastSyncStatus === 'function') setLastSyncStatus('Failed', 'server rejected the card');
+      }
       return { sent, failed };
     } finally {
       this.busy = false;
@@ -489,6 +509,7 @@ window.EHOC_SYNC = EHOC_SYNC;
         <span id="conn-dot" class="dot"></span>
         <span id="conn-text"></span>
         <span style="flex:1"></span>
+        <span id="sync-status-text" class="note">Last sync: not yet synced</span>
         <span id="pending-text" class="note"></span>
         <button id="btn-sync-now" type="button">Sync now</button>
       </div>
@@ -503,6 +524,25 @@ window.EHOC_SYNC = EHOC_SYNC;
   window.addEventListener('offline', setConn);
   setConn();
 
+  function updateLastSyncStatus() {
+    let data = { status: 'Not yet synced', when: null };
+    try {
+      const raw = localStorage.getItem('ehoc-last-sync-status');
+      if (raw) data = { ...data, ...JSON.parse(raw) };
+    } catch (e) {}
+    const when = data.when ? new Date(data.when).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+    document.getElementById('sync-status-text').textContent = when ? `${data.status} • ${when}` : data.status;
+  }
+
+  function setLastSyncStatus(status, detail = '') {
+    const entry = {
+      status: detail ? `${status} — ${detail}` : status,
+      when: new Date().toISOString()
+    };
+    localStorage.setItem('ehoc-last-sync-status', JSON.stringify(entry));
+    updateLastSyncStatus();
+  }
+
   async function refreshPending() {
     if (!window.EHOC) return;
     const n = (await EHOC.pending()).length;
@@ -513,15 +553,32 @@ window.EHOC_SYNC = EHOC_SYNC;
 
   document.getElementById('btn-sync-now').addEventListener('click', async () => {
     const r = await EHOC_SYNC.run();
-    if (r.reason === 'offline') showToast('No signal. Cards will send once signal returns.');
-    else if (r.reason === 'busy') showToast('Sync already in progress.');
-    else if (r.message) showToast(`${r.message} Cards remain pending.`);
-    else if (r.failed && r.sent) showToast(`${r.sent} card${r.sent === 1 ? '' : 's'} sent. Some cards remain pending.`);
-    else if (r.failed) showToast(r.message || 'The server did not accept the cards. They remain pending.');
-    else if (r.sent) showToast(`${r.sent} card${r.sent === 1 ? '' : 's'} sent.`);
-    else showToast('Nothing pending was sent. Cards remain safely saved on this device.');
+    if (r.reason === 'offline') {
+      setLastSyncStatus('Offline', 'waiting for signal');
+      showToast('No signal. Cards will send once signal returns.');
+    } else if (r.reason === 'busy') {
+      setLastSyncStatus('Busy', 'sync already running');
+      showToast('Sync already in progress.');
+    } else if (r.message) {
+      setLastSyncStatus('Failed', r.message);
+      showToast(`${r.message} Cards remain pending.`);
+    } else if (r.failed && r.sent) {
+      setLastSyncStatus('Partial', `${r.sent} sent`);
+      showToast(`${r.sent} card${r.sent === 1 ? '' : 's'} sent. Some cards remain pending.`);
+    } else if (r.failed) {
+      setLastSyncStatus('Failed', 'server rejected the card');
+      showToast(r.message || 'The server did not accept the cards. They remain pending.');
+    } else if (r.sent) {
+      setLastSyncStatus('Successful', `${r.sent} synced`);
+      showToast(`${r.sent} card${r.sent === 1 ? '' : 's'} sent.`);
+    } else {
+      setLastSyncStatus('No pending cards', 'nothing to sync');
+      showToast('Nothing pending was sent. Cards remain safely saved on this device.');
+    }
     refreshPending();
   });
+
+  updateLastSyncStatus();
   EHOC_SYNC.onChange(refreshPending);
 
   let toastTimer;
